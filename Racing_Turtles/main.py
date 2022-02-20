@@ -4,11 +4,11 @@ import random
 screen = Screen()
 screen.setup(width=600, height=600)
 
-wenkai = "navy blue"
-shreya = "light blue"
-louis = "orange"
-david = "light green"
-abby = "pink"
+wenkai = "#0ABAB5"
+shreya = "#0ABAB5"
+louis = "#0ABAB5"
+david = "#0ABAB5"
+abby = "#0ABAB5"
 phoebe = "light sea green"
 
 colors = [wenkai, shreya, david, abby, phoebe, louis]

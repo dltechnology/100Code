@@ -1,13 +1,19 @@
+import turtle
 from turtle import Screen
 import time
 from snake import Snake
 from food import Food
 from scoreboard import ScoreBoard
 
+
+THEME_COLOR = "tan"
+
 screen = Screen()
+screen.addshape(./)
 screen.setup(width=600, height=600)
-screen.tracer(0)
-screen.bgcolor("black")
+
+screen.tracer(10)
+screen.bgcolor(THEME_COLOR)
 screen.title("Snek Gamesssssssss")
 game_is_on = True
 
@@ -38,6 +44,10 @@ while game_is_on:
     if snake.head.xcor() > 295 or snake.head.xcor() < -295 or snake.head.ycor() > 295 or snake.head.ycor() < -295:
         score.reset()
         snake.reset()
+        snake.play_again()
+
+
+
 
 
     # detect collision with tail

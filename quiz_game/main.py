@@ -15,8 +15,8 @@ print(question_count)
 
 for questions in question_data:
     #for each of these questions create a variable called question text
-    question_text = questions["text"]
-    question_answer = questions["answer"]
+    question_text = questions["question"]
+    question_answer = questions["correct_answer"]
     new_question = Question(question_text, question_answer)
     question_bank.append(new_question)
 

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blogs</title>
+</head>
+<body>
+    {% for names in all_blogs["name"]: %}
+    <h1>{{ names }}</h1>
+    <h2> {{ all_blogs["name"][names]["gender"] }}</h2>
+    {% endfor %}
+
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "appId": "com.shadowcastle.game",
+  "appName": "Shadow Castle",
+  "webDir": ".",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "dark",
+      "backgroundColor": "#000000"
+    },
+    "SplashScreen": {
+      "launchShowDuration": 1000,
+      "backgroundColor": "#000000",
+      "showSpinner": false
+    }
+  }
+}

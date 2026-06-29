@@ -1,0 +1,11 @@
+services:
+  recipebook:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+      - ./database:/app/database

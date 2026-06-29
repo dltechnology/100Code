@@ -173,9 +173,211 @@ function renderRecipeDetail(r) {
     </div>
     ${tags ? `<div class="recipe-detail-tags">${tags}</div>` : ''}
     <div class="recipe-detail-actions">
-      <button class="btn-danger" onclick="deleteRecipe(${r.id})">Delete Recipe</button>
+      <button class="btn-secondary" onclick="openEditForm(${r.id})">Edit Recipe</button>
+      <button class="btn-danger" onclick="deleteRecipe(${r.id})">Delete</button>
     </div>
   `;
+}
+
+const CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Appetizer', 'Side Dish', 'Salad', 'Soup', 'Dessert', 'Snack', 'Beverage', 'Sauce & Condiment', 'Baked Goods'];
+
+async function openEditForm(id) {
+  const res = await fetch(`/api/recipes/${id}`);
+  if (!res.ok) return showToast('Failed to load recipe.', 'error');
+  const r = await res.json();
+
+  const photoThumb = r.image_path
+    ? `<img class="edit-photo-thumb" id="editPhotoThumb" src="${r.image_path}" alt="">`
+    : `<div class="edit-photo-thumb-placeholder" id="editPhotoThumb">🍴</div>`;
+
+  const categoryOptions = CATEGORIES.map(c =>
+    `<option value="${c}" ${c === r.category ? 'selected' : ''}>${c}</option>`
+  ).join('');
+
+  const ingredientRows = (r.ingredients || []).map((ing, i) => editListItem(ing, i, 'ing')).join('');
+  const instructionRows = (r.instructions || []).map((step, i) => editListItem(step, i, 'step')).join('');
+
+  document.getElementById('recipeContent').innerHTML = `
+    <h2 style="font-family:var(--font-head);margin-bottom:1.5rem">Edit Recipe</h2>
+    <div class="edit-form" id="editForm">
+
+      <div class="edit-field">
+        <label class="edit-label">Title</label>
+        <input class="edit-input" id="ef-title" value="${esc(r.title)}">
+      </div>
+
+      <div class="edit-field">
+        <label class="edit-label">Category</label>
+        <select class="edit-select" id="ef-category">${categoryOptions}</select>
+      </div>
+
+      <div class="edit-field">
+        <label class="edit-label">Description</label>
+        <textarea class="edit-textarea" id="ef-description">${esc(r.description || '')}</textarea>
+      </div>
+
+      <div class="edit-meta-row">
+        <div class="edit-field">
+          <label class="edit-label">Prep Time</label>
+          <input class="edit-input" id="ef-prep" value="${esc(r.prep_time || '')}">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Cook Time</label>
+          <input class="edit-input" id="ef-cook" value="${esc(r.cook_time || '')}">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Servings</label>
+          <input class="edit-input" id="ef-servings" value="${esc(r.servings || '')}">
+        </div>
+      </div>
+
+      <div class="edit-field">
+        <label class="edit-label">Ingredients</label>
+        <div class="edit-list" id="ing-list">${ingredientRows}</div>
+        <button class="btn-add-item" onclick="addEditItem('ing-list','ing')">+ Add Ingredient</button>
+      </div>
+
+      <div class="edit-field">
+        <label class="edit-label">Instructions</label>
+        <div class="edit-list" id="step-list">${instructionRows}</div>
+        <button class="btn-add-item" onclick="addEditItem('step-list','step')">+ Add Step</button>
+      </div>
+
+      <div class="edit-field">
+        <label class="edit-label">Tags <span style="font-weight:400;text-transform:none;letter-spacing:0">(comma separated)</span></label>
+        <input class="edit-input" id="ef-tags" value="${esc((r.tags || []).join(', '))}">
+      </div>
+
+      <div class="edit-field">
+        <label class="edit-label">Photo</label>
+        <div class="edit-photo-section">
+          ${photoThumb}
+          <div class="edit-photo-info">
+            <strong id="editPhotoLabel">${r.image_path ? 'Current photo' : 'No photo'}</strong>
+            <p>Replace with a photo of the finished dish</p>
+          </div>
+          <label class="btn-replace-photo">
+            Choose Photo
+            <input type="file" accept="image/*" onchange="previewNewPhoto(event, ${r.id})">
+          </label>
+        </div>
+      </div>
+
+      <div class="recipe-detail-actions">
+        <button class="btn-secondary" onclick="openRecipe(${r.id})">Cancel</button>
+        <button class="btn-primary" onclick="saveRecipe(${r.id})">Save Changes</button>
+      </div>
+    </div>
+  `;
+
+  autoResizeAll();
+}
+
+function editListItem(value, index, prefix) {
+  return `
+    <div class="edit-list-item" id="${prefix}-item-${index}">
+      <textarea oninput="autoResize(this)" rows="1">${esc(value)}</textarea>
+      <button class="btn-remove" onclick="removeEditItem('${prefix}-item-${index}')" title="Remove">×</button>
+    </div>`;
+}
+
+function addEditItem(listId, prefix) {
+  const list = document.getElementById(listId);
+  const index = list.children.length;
+  const div = document.createElement('div');
+  div.innerHTML = editListItem('', index, prefix);
+  list.appendChild(div.firstElementChild);
+  const ta = list.lastElementChild.querySelector('textarea');
+  ta.focus();
+  autoResize(ta);
+}
+
+function removeEditItem(itemId) {
+  document.getElementById(itemId)?.remove();
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function autoResizeAll() {
+  document.querySelectorAll('.edit-list-item textarea').forEach(autoResize);
+}
+
+let pendingPhotoFile = null;
+
+function previewNewPhoto(e, id) {
+  const file = e.target.files[0];
+  if (!file) return;
+  pendingPhotoFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const thumb = document.getElementById('editPhotoThumb');
+    if (thumb.tagName === 'IMG') {
+      thumb.src = ev.target.result;
+    } else {
+      const img = document.createElement('img');
+      img.className = 'edit-photo-thumb';
+      img.id = 'editPhotoThumb';
+      img.src = ev.target.result;
+      thumb.replaceWith(img);
+    }
+    document.getElementById('editPhotoLabel').textContent = 'New photo selected';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveRecipe(id) {
+  const title = document.getElementById('ef-title').value.trim();
+  if (!title) return showToast('Title is required.', 'error');
+
+  const ingredients = Array.from(document.querySelectorAll('#ing-list textarea'))
+    .map(t => t.value.trim()).filter(Boolean);
+  const instructions = Array.from(document.querySelectorAll('#step-list textarea'))
+    .map(t => t.value.trim()).filter(Boolean);
+  const tags = document.getElementById('ef-tags').value
+    .split(',').map(t => t.trim()).filter(Boolean);
+
+  const saveBtn = document.querySelector('#editForm .btn-primary');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+
+  try {
+    const res = await fetch(`/api/recipes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        category: document.getElementById('ef-category').value,
+        description: document.getElementById('ef-description').value.trim(),
+        prep_time: document.getElementById('ef-prep').value.trim(),
+        cook_time: document.getElementById('ef-cook').value.trim(),
+        servings: document.getElementById('ef-servings').value.trim(),
+        ingredients,
+        instructions,
+        tags
+      })
+    });
+    if (!res.ok) throw new Error();
+
+    if (pendingPhotoFile) {
+      const fd = new FormData();
+      fd.append('photo', pendingPhotoFile);
+      const pRes = await fetch(`/api/recipes/${id}/photo`, { method: 'POST', body: fd });
+      if (!pRes.ok) throw new Error('Photo upload failed');
+      pendingPhotoFile = null;
+    }
+
+    showToast('Recipe saved!', 'success');
+    await loadCategories();
+    await loadRecipes();
+    openRecipe(id);
+  } catch {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save Changes';
+    showToast('Failed to save.', 'error');
+  }
 }
 
 async function deleteRecipe(id) {

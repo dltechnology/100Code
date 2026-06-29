@@ -1,6 +1,29 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+const multer = require('multer');
 const db = require('../database/db');
+
+const photoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads')),
+  filename: (req, file, cb) => {
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, unique + path.extname(file.originalname));
+  }
+});
+const photoUpload = multer({
+  storage: photoStorage,
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/jpeg|jpg|png|webp/i.test(path.extname(file.originalname)) && /image\//.test(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Images only'));
+    }
+  }
+});
 
 function parseRecipe(row) {
   if (!row) return null;
@@ -12,7 +35,7 @@ function parseRecipe(row) {
   };
 }
 
-// GET all recipes (with optional category filter and search)
+// GET all recipes
 router.get('/', (req, res) => {
   const { category, search, limit = 50, offset = 0 } = req.query;
   let query = 'SELECT * FROM recipes WHERE 1=1';
@@ -52,7 +75,7 @@ router.get('/:id', (req, res) => {
   res.json(parseRecipe(row));
 });
 
-// PUT update recipe
+// PUT update recipe fields
 router.put('/:id', (req, res) => {
   const { title, category, description, ingredients, instructions, prep_time, cook_time, servings, tags } = req.body;
   const existing = db.prepare('SELECT id FROM recipes WHERE id = ?').get(req.params.id);
@@ -62,13 +85,37 @@ router.put('/:id', (req, res) => {
     UPDATE recipes SET title=?, category=?, description=?, ingredients=?, instructions=?,
     prep_time=?, cook_time=?, servings=?, tags=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
   `).run(
-    title, category, description,
-    JSON.stringify(ingredients), JSON.stringify(instructions),
-    prep_time, cook_time, servings, JSON.stringify(tags),
+    title, category, description || null,
+    JSON.stringify(ingredients || []), JSON.stringify(instructions || []),
+    prep_time || null, cook_time || null, servings || null,
+    JSON.stringify(tags || []),
     req.params.id
   );
 
   res.json({ success: true });
+});
+
+// POST replace photo
+router.post('/:id/photo', photoUpload.single('photo'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+
+  const existing = db.prepare('SELECT id, image_path FROM recipes WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Recipe not found' });
+
+  // Delete old photo file if it exists
+  if (existing.image_path) {
+    const oldFile = path.join(__dirname, '..', existing.image_path);
+    if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
+  }
+
+  const imageData = fs.readFileSync(req.file.path);
+  const imageHash = crypto.createHash('sha256').update(imageData).digest('hex');
+  const relativePath = '/uploads/' + path.basename(req.file.filename);
+
+  db.prepare('UPDATE recipes SET image_path=?, image_hash=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+    .run(relativePath, imageHash, req.params.id);
+
+  res.json({ success: true, image_path: relativePath });
 });
 
 // DELETE recipe

@@ -597,10 +597,11 @@ body {
   border-radius: 100px;
 }
 
-.queue-status.pending  { color: var(--text-muted); background: var(--border); }
-.queue-status.active   { color: #111; background: var(--accent); }
-.queue-status.done     { color: var(--green); background: rgba(39,174,96,0.15); }
-.queue-status.error    { color: var(--red); background: rgba(192,57,43,0.15); }
+.queue-status.pending   { color: var(--text-muted); background: var(--border); }
+.queue-status.active    { color: #111; background: var(--accent); }
+.queue-status.done      { color: var(--green); background: rgba(39,174,96,0.15); }
+.queue-status.error     { color: var(--red); background: rgba(192,57,43,0.15); }
+.queue-status.duplicate { color: var(--text-muted); background: var(--surface2); }
 
 .queue-progress {
   text-align: center;

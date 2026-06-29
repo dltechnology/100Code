@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const Anthropic = require('@anthropic-ai/sdk');
 const db = require('../database/db');
 
@@ -38,6 +39,16 @@ router.post('/', upload.single('photo'), async (req, res) => {
 
   const imagePath = req.file.path;
   const imageData = fs.readFileSync(imagePath);
+
+  // Check for exact duplicate image before calling the AI
+  const imageHash = crypto.createHash('sha256').update(imageData).digest('hex');
+  const existing = db.prepare('SELECT id, title FROM recipes WHERE image_hash = ?').get(imageHash);
+  if (existing) {
+    fs.unlinkSync(imagePath);
+    return res.status(409).json({ duplicate: true, id: existing.id, title: existing.title,
+      error: `Duplicate: "${existing.title}" was already added from this photo.` });
+  }
+
   const base64Image = imageData.toString('base64');
   const mimeType = req.file.mimetype;
 
@@ -87,11 +98,19 @@ If any field is unclear or not visible, use null for strings or empty array for 
       return res.status(422).json({ error: 'Could not extract a complete recipe from this image. Please try a clearer photo.' });
     }
 
+    // Check for duplicate title (same recipe photographed differently)
+    const titleDupe = db.prepare('SELECT id, title FROM recipes WHERE LOWER(title) = LOWER(?)').get(recipe.title);
+    if (titleDupe) {
+      fs.unlinkSync(imagePath);
+      return res.status(409).json({ duplicate: true, id: titleDupe.id, title: titleDupe.title,
+        error: `Duplicate: "${titleDupe.title}" is already in your cookbook.` });
+    }
+
     const relativePath = '/uploads/' + path.basename(req.file.filename);
 
     const stmt = db.prepare(`
-      INSERT INTO recipes (title, category, description, ingredients, instructions, prep_time, cook_time, servings, tags, image_path)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO recipes (title, category, description, ingredients, instructions, prep_time, cook_time, servings, tags, image_path, image_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
@@ -104,7 +123,8 @@ If any field is unclear or not visible, use null for strings or empty array for 
       recipe.cook_time || null,
       recipe.servings || null,
       JSON.stringify(recipe.tags || []),
-      relativePath
+      relativePath,
+      imageHash
     );
 
     res.json({ success: true, id: result.lastInsertRowid, recipe: { id: result.lastInsertRowid, ...recipe, image_path: relativePath } });

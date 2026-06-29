@@ -16,6 +16,7 @@ db.exec(`
     servings TEXT,
     tags TEXT,
     image_path TEXT,
+    image_hash TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -23,5 +24,10 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_category ON recipes(category);
   CREATE INDEX IF NOT EXISTS idx_created_at ON recipes(created_at);
 `);
+
+// Add image_hash column to existing databases that predate this field
+try {
+  db.exec('ALTER TABLE recipes ADD COLUMN image_hash TEXT');
+} catch (_) { /* column already exists */ }
 
 module.exports = db;

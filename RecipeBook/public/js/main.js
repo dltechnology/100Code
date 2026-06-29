@@ -281,8 +281,13 @@ async function processBulk() {
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
+      if (res.status === 409 && data.duplicate) {
+        setQueueStatus(i, 'duplicate', 'Duplicate');
+        continue;
+      }
       if (!res.ok) throw new Error(data.error || 'Failed');
-      setQueueStatus(i, 'done', data.recipe.title.slice(0, 20) + (data.recipe.title.length > 20 ? '…' : ''));
+      const label = data.recipe.title.slice(0, 22) + (data.recipe.title.length > 22 ? '…' : '');
+      setQueueStatus(i, 'done', label);
       done++;
       lastId = data.id;
     } catch (err) {

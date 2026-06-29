@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Recipe Book</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;500;600&family=Lora:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav-inner">
+      <div class="logo">
+        <span class="logo-icon">&#9850;</span>
+        <span class="logo-text">The Recipe Book</span>
+      </div>
+      <div class="nav-links">
+        <a href="/" class="nav-link active">Cookbook</a>
+        <button class="btn-upload" onclick="openUploadModal()">+ Add Recipe</button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-content">
+        <h1>Every Recipe Deserves<br>a Proper Home.</h1>
+        <p>Snap a photo of any recipe. We'll read it, organize it, and add it to your cookbook.</p>
+        <button class="btn-primary" onclick="openUploadModal()">Digitize a Recipe</button>
+      </div>
+      <div class="hero-stats" id="heroStats"></div>
+    </section>
+
+    <section class="cookbook-section">
+      <div class="section-controls">
+        <div class="category-tabs" id="categoryTabs">
+          <button class="cat-tab active" data-cat="All">All</button>
+        </div>
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="Search recipes..." autocomplete="off">
+          <span class="search-icon">&#128269;</span>
+        </div>
+      </div>
+
+      <div class="recipes-grid" id="recipesGrid">
+        <div class="loading-state">Loading your cookbook...</div>
+      </div>
+
+      <div class="empty-state" id="emptyState" style="display:none">
+        <div class="empty-icon">&#128218;</div>
+        <h3>Your cookbook is empty</h3>
+        <p>Add your first recipe by photographing a page from your cookbook.</p>
+        <button class="btn-primary" onclick="openUploadModal()">Add First Recipe</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Upload Modal -->
+  <div class="modal-overlay" id="uploadModal" onclick="closeUploadModal(event)">
+    <div class="modal">
+      <button class="modal-close" onclick="closeUploadModal()">&#x2715;</button>
+      <h2>Add a New Recipe</h2>
+      <p class="modal-subtitle">Take or upload a photo of a recipe page and our AI will extract it for you.</p>
+
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handleFileSelect(event)">
+        <div class="upload-prompt" id="uploadPrompt">
+          <div class="upload-icon">&#128247;</div>
+          <p><strong>Tap to take a photo</strong> or drag & drop</p>
+          <p class="upload-hint">JPG, PNG, WEBP up to 15MB</p>
+        </div>
+        <img class="upload-preview" id="uploadPreview" style="display:none" alt="Preview">
+      </div>
+
+      <div class="upload-actions">
+        <button class="btn-secondary" onclick="clearUpload()">Clear</button>
+        <button class="btn-primary" id="processBtn" onclick="processRecipe()" disabled>Extract Recipe</button>
+      </div>
+
+      <div class="upload-status" id="uploadStatus" style="display:none">
+        <div class="spinner"></div>
+        <span id="statusText">Reading your recipe...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recipe Modal -->
+  <div class="modal-overlay" id="recipeModal" onclick="closeRecipeModal(event)">
+    <div class="modal modal-recipe">
+      <button class="modal-close" onclick="closeRecipeModal()">&#x2715;</button>
+      <div id="recipeContent"></div>
+    </div>
+  </div>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>

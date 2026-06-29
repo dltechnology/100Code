@@ -198,7 +198,7 @@ function closeRecipeModal(e) {
   document.body.style.overflow = '';
 }
 
-let selectedFile = null;
+let selectedFiles = [];
 
 function openUploadModal() {
   clearUpload();
@@ -214,59 +214,94 @@ function closeUploadModal(e) {
 }
 
 function handleFileSelect(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  selectedFile = file;
+  const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+  if (!files.length) return;
+  selectedFiles = files;
+  renderQueue();
+  document.getElementById('processBtn').disabled = false;
+  document.getElementById('processBtn').textContent = `Extract ${files.length} Recipe${files.length > 1 ? 's' : ''}`;
+}
 
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const preview = document.getElementById('uploadPreview');
-    preview.src = ev.target.result;
-    preview.style.display = 'block';
-    document.getElementById('uploadPrompt').style.display = 'none';
-    document.getElementById('processBtn').disabled = false;
-  };
-  reader.readAsDataURL(file);
+function renderQueue() {
+  const queueEl = document.getElementById('fileQueue');
+  queueEl.style.display = 'flex';
+  queueEl.innerHTML = selectedFiles.map((f, i) => `
+    <div class="queue-item" id="qitem-${i}">
+      <img class="queue-thumb" id="qthumb-${i}" src="" alt="">
+      <span class="queue-name">${esc(f.name)}</span>
+      <span class="queue-status pending" id="qstatus-${i}">Waiting</span>
+    </div>`).join('');
+
+  selectedFiles.forEach((f, i) => {
+    const reader = new FileReader();
+    reader.onload = ev => { document.getElementById(`qthumb-${i}`).src = ev.target.result; };
+    reader.readAsDataURL(f);
+  });
+}
+
+function setQueueStatus(i, status, label) {
+  const el = document.getElementById(`qstatus-${i}`);
+  if (!el) return;
+  el.className = `queue-status ${status}`;
+  el.textContent = label;
+  document.getElementById(`qitem-${i}`)?.scrollIntoView({ block: 'nearest' });
 }
 
 function clearUpload() {
-  selectedFile = null;
+  selectedFiles = [];
   document.getElementById('photoInput').value = '';
-  document.getElementById('uploadPreview').style.display = 'none';
-  document.getElementById('uploadPrompt').style.display = 'block';
+  document.getElementById('fileQueue').style.display = 'none';
+  document.getElementById('fileQueue').innerHTML = '';
   document.getElementById('processBtn').disabled = true;
+  document.getElementById('processBtn').textContent = 'Extract Recipes';
   document.getElementById('uploadStatus').style.display = 'none';
-  document.getElementById('statusText').textContent = 'Reading your recipe...';
+  document.getElementById('statusText').textContent = 'Processing...';
 }
 
-async function processRecipe() {
-  if (!selectedFile) return;
+async function processBulk() {
+  if (!selectedFiles.length) return;
   const statusEl = document.getElementById('uploadStatus');
   const statusText = document.getElementById('statusText');
   const processBtn = document.getElementById('processBtn');
+  processBtn.disabled = true;
+
+  let done = 0, errors = 0;
+  const total = selectedFiles.length;
+  let lastId = null;
 
   statusEl.style.display = 'flex';
-  processBtn.disabled = true;
-  statusText.textContent = 'Claude is reading your recipe...';
 
-  const formData = new FormData();
-  formData.append('photo', selectedFile);
+  for (let i = 0; i < total; i++) {
+    setQueueStatus(i, 'active', 'Reading...');
+    statusText.textContent = `Processing ${i + 1} of ${total}...`;
 
-  try {
-    const res = await fetch('/api/upload', { method: 'POST', body: formData });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Processing failed');
+    const formData = new FormData();
+    formData.append('photo', selectedFiles[i]);
 
-    showToast(`"${data.recipe.title}" added to your cookbook!`, 'success');
-    closeUploadModal();
-    await loadCategories();
-    await loadRecipes();
-    openRecipe(data.id);
-  } catch (e) {
-    statusEl.style.display = 'none';
-    processBtn.disabled = false;
-    showToast(e.message, 'error');
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setQueueStatus(i, 'done', data.recipe.title.slice(0, 20) + (data.recipe.title.length > 20 ? '…' : ''));
+      done++;
+      lastId = data.id;
+    } catch (err) {
+      setQueueStatus(i, 'error', 'Error');
+      errors++;
+    }
   }
+
+  statusEl.style.display = 'none';
+
+  const msg = errors === 0
+    ? `${done} recipe${done > 1 ? 's' : ''} added to your cookbook!`
+    : `${done} added, ${errors} failed.`;
+  showToast(msg, errors === 0 ? 'success' : 'error');
+
+  closeUploadModal();
+  await loadCategories();
+  await loadRecipes();
+  if (lastId && done === 1) openRecipe(lastId);
 }
 
 const zone = document.getElementById('uploadZone');
@@ -275,19 +310,12 @@ zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
 zone.addEventListener('drop', e => {
   e.preventDefault();
   zone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file && file.type.startsWith('image/')) {
-    selectedFile = file;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const preview = document.getElementById('uploadPreview');
-      preview.src = ev.target.result;
-      preview.style.display = 'block';
-      document.getElementById('uploadPrompt').style.display = 'none';
-      document.getElementById('processBtn').disabled = false;
-    };
-    reader.readAsDataURL(file);
-  }
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  if (!files.length) return;
+  selectedFiles = files;
+  renderQueue();
+  document.getElementById('processBtn').disabled = false;
+  document.getElementById('processBtn').textContent = `Extract ${files.length} Recipe${files.length > 1 ? 's' : ''}`;
 });
 
 function showToast(msg, type = 'success') {

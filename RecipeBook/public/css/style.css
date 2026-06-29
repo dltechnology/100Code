@@ -549,6 +549,68 @@ body {
   background: var(--bg);
 }
 
+/* ── File Queue ── */
+.file-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  font-size: 0.85rem;
+}
+
+.queue-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.queue-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.queue-status {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 100px;
+}
+
+.queue-status.pending  { color: var(--text-muted); background: var(--border); }
+.queue-status.active   { color: #111; background: var(--accent); }
+.queue-status.done     { color: var(--green); background: rgba(39,174,96,0.15); }
+.queue-status.error    { color: var(--red); background: rgba(192,57,43,0.15); }
+
+.queue-progress {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 0.8rem;
+}
+
+.queue-progress span { color: var(--accent); font-weight: 600; }
+
 .upload-actions {
   display: flex;
   gap: 0.8rem;

@@ -65,23 +65,24 @@
       <p class="modal-subtitle">Take or upload a photo of a recipe page and our AI will extract it for you.</p>
 
       <div class="upload-zone" id="uploadZone">
-        <input type="file" id="photoInput" accept="image/*" onchange="handleFileSelect(event)">
+        <input type="file" id="photoInput" accept="image/*" multiple onchange="handleFileSelect(event)">
         <div class="upload-prompt" id="uploadPrompt">
           <div class="upload-icon">&#128247;</div>
-          <p><strong>Tap to choose a photo</strong> or drag & drop</p>
-          <p class="upload-hint">JPG, PNG, WEBP up to 15MB</p>
+          <p><strong>Tap to choose photos</strong> or drag & drop</p>
+          <p class="upload-hint">Select multiple photos at once &mdash; JPG, PNG, WEBP up to 15MB each</p>
         </div>
-        <img class="upload-preview" id="uploadPreview" style="display:none" alt="Preview">
       </div>
+
+      <div class="file-queue" id="fileQueue" style="display:none"></div>
 
       <div class="upload-actions">
         <button class="btn-secondary" onclick="clearUpload()">Clear</button>
-        <button class="btn-primary" id="processBtn" onclick="processRecipe()" disabled>Extract Recipe</button>
+        <button class="btn-primary" id="processBtn" onclick="processBulk()" disabled>Extract Recipes</button>
       </div>
 
       <div class="upload-status" id="uploadStatus" style="display:none">
         <div class="spinner"></div>
-        <span id="statusText">Reading your recipe...</span>
+        <span id="statusText">Processing...</span>
       </div>
     </div>
   </div>

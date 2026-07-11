@@ -135,4 +135,79 @@ If any field is unclear or not visible, use null for strings or empty array for 
   }
 });
 
+const RECIPE_JSON_PROMPT = `You are a recipe extraction assistant. Parse the following recipe text and return ONLY valid JSON with this exact structure (no markdown, no extra text):
+
+{
+  "title": "Recipe name",
+  "category": "One of: ${CATEGORIES.join(', ')}",
+  "description": "One or two sentence description of the dish",
+  "ingredients": ["ingredient 1 with amount", "ingredient 2 with amount"],
+  "instructions": ["Step 1 description", "Step 2 description"],
+  "prep_time": "e.g. 15 minutes or null",
+  "cook_time": "e.g. 30 minutes or null",
+  "servings": "e.g. 4 servings or null",
+  "tags": ["tag1", "tag2"]
+}
+
+For tags consider: Quick, Vegetarian, Vegan, Gluten-Free, Spicy, Comfort Food, Healthy, Make-Ahead, One-Pan, Grilling, etc.
+If any field is missing or unclear, use null for strings or empty array for arrays.
+
+Recipe text:
+`;
+
+router.post('/text', async (req, res) => {
+  const { text } = req.body;
+  if (!text || text.trim().length < 20) {
+    return res.status(400).json({ error: 'Please paste a recipe with at least some content.' });
+  }
+  if (text.length > 20000) {
+    return res.status(400).json({ error: 'Text is too long. Please paste one recipe at a time.' });
+  }
+
+  try {
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: RECIPE_JSON_PROMPT + text.trim() }]
+    });
+
+    const rawText = response.content[0].text.trim();
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No valid JSON returned from AI');
+
+    const recipe = JSON.parse(jsonMatch[0]);
+
+    if (!recipe.title || !recipe.ingredients?.length || !recipe.instructions?.length) {
+      return res.status(422).json({ error: "Couldn't parse a complete recipe from that text. Make sure it includes ingredients and instructions." });
+    }
+
+    const titleDupe = db.prepare('SELECT id, title FROM recipes WHERE LOWER(title) = LOWER(?)').get(recipe.title);
+    if (titleDupe) {
+      return res.status(409).json({ duplicate: true, id: titleDupe.id, title: titleDupe.title,
+        error: `"${titleDupe.title}" is already in your cookbook.` });
+    }
+
+    const result = db.prepare(`
+      INSERT INTO recipes (title, category, description, ingredients, instructions, prep_time, cook_time, servings, tags)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      recipe.title,
+      recipe.category || 'Dinner',
+      recipe.description || null,
+      JSON.stringify(recipe.ingredients || []),
+      JSON.stringify(recipe.instructions || []),
+      recipe.prep_time || null,
+      recipe.cook_time || null,
+      recipe.servings || null,
+      JSON.stringify(recipe.tags || [])
+    );
+
+    res.json({ success: true, id: result.lastInsertRowid, recipe: { id: result.lastInsertRowid, ...recipe } });
+
+  } catch (err) {
+    console.error('Text recipe error:', err);
+    res.status(500).json({ error: 'Failed to process recipe: ' + err.message });
+  }
+});
+
 module.exports = router;

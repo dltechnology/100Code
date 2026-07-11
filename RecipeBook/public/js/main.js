@@ -401,9 +401,11 @@ function closeRecipeModal(e) {
 }
 
 let selectedFiles = [];
+let activeTab = 'photo';
 
 function openUploadModal() {
   clearUpload();
+  switchTab('photo');
   document.getElementById('uploadModal').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -413,6 +415,52 @@ function closeUploadModal(e) {
   document.getElementById('uploadModal').classList.remove('open');
   document.body.style.overflow = '';
   clearUpload();
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('panelPhoto').style.display = tab === 'photo' ? 'block' : 'none';
+  document.getElementById('panelText').style.display  = tab === 'text'  ? 'block' : 'none';
+  document.getElementById('tabPhoto').classList.toggle('active', tab === 'photo');
+  document.getElementById('tabText').classList.toggle('active', tab === 'text');
+}
+
+async function processTextRecipe() {
+  const text = document.getElementById('pasteInput').value.trim();
+  if (!text) return showToast('Paste a recipe first.', 'error');
+
+  const statusEl = document.getElementById('uploadStatus');
+  const statusText = document.getElementById('statusText');
+  const btn = document.getElementById('pasteBtn');
+
+  statusEl.style.display = 'flex';
+  statusText.textContent = 'Reading your recipe...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/upload/text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json();
+
+    if (res.status === 409 && data.duplicate) {
+      throw new Error(data.error);
+    }
+    if (!res.ok) throw new Error(data.error || 'Failed to process recipe');
+
+    showToast(`"${data.recipe.title}" added to your cookbook!`, 'success');
+    closeUploadModal();
+    await loadCategories();
+    await loadRecipes();
+    openRecipe(data.id);
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    statusEl.style.display = 'none';
+    btn.disabled = false;
+  }
 }
 
 function handleFileSelect(e) {

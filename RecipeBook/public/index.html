@@ -62,22 +62,38 @@
     <div class="modal">
       <button class="modal-close" onclick="closeUploadModal()">&#x2715;</button>
       <h2>Add a New Recipe</h2>
-      <p class="modal-subtitle">Take or upload a photo of a recipe page and our AI will extract it for you.</p>
 
-      <div class="upload-zone" id="uploadZone">
-        <input type="file" id="photoInput" accept="image/*" multiple onchange="handleFileSelect(event)">
-        <div class="upload-prompt" id="uploadPrompt">
-          <div class="upload-icon">&#128247;</div>
-          <p><strong>Tap to choose photos</strong> or drag & drop</p>
-          <p class="upload-hint">Select multiple photos at once &mdash; JPG, PNG, WEBP up to 15MB each</p>
+      <div class="upload-tabs">
+        <button class="upload-tab active" id="tabPhoto" onclick="switchTab('photo')">&#128247; Photo</button>
+        <button class="upload-tab" id="tabText" onclick="switchTab('text')">&#128203; Paste Text</button>
+      </div>
+
+      <!-- Photo tab -->
+      <div id="panelPhoto">
+        <p class="modal-subtitle">Take or upload a photo of a recipe page and our AI will extract it.</p>
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="photoInput" accept="image/*" multiple onchange="handleFileSelect(event)">
+          <div class="upload-prompt" id="uploadPrompt">
+            <div class="upload-icon">&#128247;</div>
+            <p><strong>Tap to choose photos</strong> or drag & drop</p>
+            <p class="upload-hint">Select multiple photos at once &mdash; JPG, PNG, WEBP up to 15MB each</p>
+          </div>
+        </div>
+        <div class="file-queue" id="fileQueue" style="display:none"></div>
+        <div class="upload-actions">
+          <button class="btn-secondary" onclick="clearUpload()">Clear</button>
+          <button class="btn-primary" id="processBtn" onclick="processBulk()" disabled>Extract Recipes</button>
         </div>
       </div>
 
-      <div class="file-queue" id="fileQueue" style="display:none"></div>
-
-      <div class="upload-actions">
-        <button class="btn-secondary" onclick="clearUpload()">Clear</button>
-        <button class="btn-primary" id="processBtn" onclick="processBulk()" disabled>Extract Recipes</button>
+      <!-- Text tab -->
+      <div id="panelText" style="display:none">
+        <p class="modal-subtitle">Paste a recipe from anywhere — a website, a message, your notes app.</p>
+        <textarea id="pasteInput" class="paste-textarea" placeholder="Paste your recipe here...&#10;&#10;Example:&#10;Grandma's Chicken Soup&#10;&#10;Ingredients:&#10;- 1 whole chicken&#10;- 3 carrots..."></textarea>
+        <div class="upload-actions">
+          <button class="btn-secondary" onclick="document.getElementById('pasteInput').value=''">Clear</button>
+          <button class="btn-primary" id="pasteBtn" onclick="processTextRecipe()">Add to Cookbook</button>
+        </div>
       </div>
 
       <div class="upload-status" id="uploadStatus" style="display:none">

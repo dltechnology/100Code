@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Berry Farm Rescue</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#7ec8e3">
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    overflow: hidden; overscroll-behavior: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    background: #7ec8e3;
+    user-select: none;
+  }
+  #gameCanvas {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: block; touch-action: none;
+  }
+  #ui {
+    position: fixed; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top, 10px) env(safe-area-inset-right, 10px) env(safe-area-inset-bottom, 10px) env(safe-area-inset-left, 10px);
+  }
+  .topbar {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 8px 10px; gap: 8px;
+  }
+  .pill {
+    background: rgba(255,255,255,0.85);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-weight: 700;
+    font-size: 14px;
+    color: #4a3728;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  .stack { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .barWrap {
+    background: rgba(255,255,255,0.85);
+    border-radius: 999px;
+    padding: 5px 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    min-width: 130px;
+  }
+  .barLabel { font-size: 11px; font-weight: 700; color: #4a3728; margin-bottom: 2px; display:flex; justify-content: space-between;}
+  .barTrack { height: 8px; border-radius: 999px; background: #eadfce; overflow: hidden; }
+  .barFill { height: 100%; border-radius: 999px; transition: width 0.15s ease-out; }
+  #berryFill { background: linear-gradient(90deg,#ff6f91,#ff4d6d); }
+  #happyFill { background: linear-gradient(90deg,#ffd166,#fb8b24); }
+  .iconBtn {
+    pointer-events: auto;
+    background: rgba(255,255,255,0.85);
+    border: none; border-radius: 999px;
+    width: 38px; height: 38px;
+    font-size: 18px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(30, 30, 40, 0.55);
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: auto;
+    padding: 20px;
+  }
+  .card {
+    background: #fffaf2;
+    border-radius: 24px;
+    padding: 26px 24px;
+    max-width: 380px; width: 100%;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    max-height: 90vh; overflow-y: auto;
+  }
+  .card h1 { margin: 0 0 4px; font-size: 26px; color: #4a3728; }
+  .card h2 { margin: 0 0 10px; font-size: 22px; color: #4a3728; }
+  .card p { color: #6b5744; font-size: 14px; line-height: 1.5; }
+  .diffRow { display: flex; gap: 8px; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
+  .diffBtn, .bigBtn {
+    border: none; border-radius: 14px; cursor: pointer;
+    font-weight: 800; font-family: inherit;
+  }
+  .diffBtn {
+    background: #eadfce; color: #4a3728;
+    padding: 10px 14px; font-size: 14px;
+  }
+  .diffBtn.selected { background: #ff8fa3; color: white; }
+  .bigBtn {
+    background: linear-gradient(135deg,#7bd389,#4caf6e);
+    color: white; font-size: 18px;
+    padding: 14px 30px; margin-top: 10px;
+    box-shadow: 0 4px 0 #398a55;
+    width: 100%;
+  }
+  .bigBtn:active { transform: translateY(2px); box-shadow: 0 2px 0 #398a55; }
+  .bigBtn.secondary {
+    background: linear-gradient(135deg,#8ec9e0,#5aa9c9);
+    box-shadow: 0 4px 0 #3c7fa0;
+  }
+  .statRow { display:flex; justify-content: space-between; font-size: 14px; color:#4a3728; margin: 4px 0; padding: 0 6px;}
+  .statRow b { color: #d1495b; }
+  .hidden { display: none !important; }
+  .float-emoji { position:absolute; font-size:26px; pointer-events:none; }
+  #stormBanner {
+    position: fixed; top: 90px; left: 50%; transform: translateX(-50%);
+    background: rgba(90,30,110,0.85); color: #ffe9ff;
+    padding: 6px 16px; border-radius: 999px; font-weight: 800; font-size: 14px;
+    pointer-events: none; letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="ui">
+  <div class="topbar">
+    <div class="stack">
+      <div class="pill">⏰ <span id="timeText">60</span>s</div>
+      <div class="barWrap">
+        <div class="barLabel"><span>🍓 Berries</span><span id="berryText">0/15</span></div>
+        <div class="barTrack"><div class="barFill" id="berryFill" style="width:0%"></div></div>
+      </div>
+      <div class="barWrap">
+        <div class="barLabel"><span id="trexName">🦖 Rexy</span><span id="happyPct">50%</span></div>
+        <div class="barTrack"><div class="barFill" id="happyFill" style="width:50%"></div></div>
+      </div>
+    </div>
+    <div class="stack" style="align-items:flex-end;">
+      <div class="pill">🌾 Lv.<span id="levelText">1</span></div>
+      <div style="display:flex; gap:6px;">
+        <button class="iconBtn" id="muteBtn">🔊</button>
+        <button class="iconBtn" id="pauseBtn">⏸</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="stormBanner" class="hidden">🌪️ BERRY STORM!</div>
+
+<!-- START SCREEN -->
+<div class="overlay" id="startScreen">
+  <div class="card">
+    <h1>🍓 Berry Farm Rescue 🦖</h1>
+    <p>Drag anywhere to move <b>Mei</b> along the farm. Catch berries to hit your goal before time's up! Catch 🍖 meat to feed your tiny T-Rex, <b>Rexy</b> — keep him happy and he'll grow up and help you out. Dodge the bugs 🐛!</p>
+    <div>
+      <p style="margin-bottom:4px;"><b>Choose difficulty:</b></p>
+      <div class="diffRow" id="diffRow">
+        <button class="diffBtn" data-diff="easy">🌱 Easy</button>
+        <button class="diffBtn selected" data-diff="normal">🌻 Normal</button>
+        <button class="diffBtn" data-diff="hard">🔥 Hard</button>
+      </div>
+    </div>
+    <button class="bigBtn" id="startBtn">▶ Start Farming</button>
+    <p style="font-size:12px; margin-top:12px; opacity:0.75;">Tip: tap Share → "Add to Home Screen" for full-screen play on iPhone.</p>
+  </div>
+</div>
+
+<!-- LEVEL COMPLETE -->
+<div class="overlay hidden" id="levelCompleteScreen">
+  <div class="card">
+    <h2>🎉 Harvest Complete!</h2>
+    <div class="statRow"><span>Berries picked</span><b id="lcBerries">0</b></div>
+    <div class="statRow"><span>Time bonus</span><b id="lcTimeBonus">0</b></div>
+    <div class="statRow"><span>Rexy's stage</span><b id="lcStage">Hatchling</b></div>
+    <div class="statRow"><span>Total score</span><b id="lcScore">0</b></div>
+    <button class="bigBtn" id="nextLevelBtn">▶ Next Level</button>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div class="overlay hidden" id="gameOverScreen">
+  <div class="card">
+    <h2>⏳ Time's Up!</h2>
+    <p id="goMessage">The harvest basket wasn't quite full...</p>
+    <div class="statRow"><span>Berries picked</span><b id="goBerries">0</b></div>
+    <div class="statRow"><span>Goal</span><b id="goGoal">0</b></div>
+    <div class="statRow"><span>Level reached</span><b id="goLevel">1</b></div>
+    <button class="bigBtn" id="retryBtn">🔄 Try Again</button>
+    <button class="bigBtn secondary" id="menuBtn">🏠 Main Menu</button>
+  </div>
+</div>
+
+<!-- PAUSE -->
+<div class="overlay hidden" id="pauseScreen">
+  <div class="card">
+    <h2>⏸ Paused</h2>
+    <button class="bigBtn" id="resumeBtn">▶ Resume</button>
+    <button class="bigBtn secondary" id="quitBtn">🏠 Main Menu</button>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- Setup ---------- */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+let W = 0, H = 0;
+let bgCanvas = document.createElement('canvas');
+let bgCtx = bgCanvas.getContext('2d');
+
+function resize(){
+  W = window.innerWidth;
+  H = window.innerHeight;
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  bgCanvas.width = W * DPR;
+  bgCanvas.height = H * DPR;
+  bgCtx.setTransform(DPR,0,0,DPR,0,0);
+  drawBackground();
+  groundY = H - Math.max(90, H*0.16);
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', ()=>setTimeout(resize,200));
+
+/* ---------- Persistence (best effort; may not persist on file:// origins) ---------- */
+let save = { growthStage: 0, happiness: 50, bestLevel: 1 };
+try {
+  const raw = localStorage.getItem('berryFarmSave');
+  if (raw) save = Object.assign(save, JSON.parse(raw));
+} catch(e) {}
+function persist(){
+  try { localStorage.setItem('berryFarmSave', JSON.stringify({
+    growthStage: trex.growthStage, happiness: trex.happiness, bestLevel: level
+  })); } catch(e) {}
+}
+
+/* ---------- Audio (simple synthesized SFX) ---------- */
+let audioCtx = null;
+let muted = false;
+function ensureAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+function beep(freq, dur, type, vol){
+  if (muted || !audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, t);
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(vol||0.15, t+0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, t+dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t+dur+0.02);
+}
+const sfx = {
+  pick: ()=>beep(660,0.12,'triangle',0.16),
+  rare: ()=>{beep(880,0.1,'triangle',0.18); beep(1180,0.15,'triangle',0.15);},
+  feed: ()=>{beep(520,0.08,'square',0.12); beep(760,0.14,'square',0.12);},
+  grow: ()=>{[440,660,880,1100].forEach((f,i)=>setTimeout(()=>beep(f,0.18,'triangle',0.2), i*90));},
+  bad: ()=>beep(160,0.2,'sawtooth',0.15),
+  win: ()=>{[520,660,880].forEach((f,i)=>setTimeout(()=>beep(f,0.25,'sine',0.18), i*120));},
+  lose: ()=>{[400,320,240].forEach((f,i)=>setTimeout(()=>beep(f,0.3,'sine',0.15), i*140));}
+};
+
+/* ---------- Game constants ---------- */
+const DIFF = {
+  easy:   { goal:12, time:50, fallSpeed:85,  spawnMs:900, bad:0.10 },
+  normal: { goal:16, time:45, fallSpeed:105, spawnMs:800, bad:0.15 },
+  hard:   { goal:20, time:40, fallSpeed:125, spawnMs:680, bad:0.20 }
+};
+const GROWTH_NAMES = ["Hatchling","Baby Rex","Young Rex","Big Rex","Mega Rex"];
+const GROWTH_SCALE = [0.55, 0.75, 0.95, 1.2, 1.45];
+
+let difficulty = 'normal';
+let level = 1;
+let state = 'start'; // start, playing, paused, levelcomplete, gameover
+let groundY = 0;
+
+let girl = { x: 0, y: 0, targetX: 0, vx: 0, phase: 0, catchFlash: 0, speedMul: 1 };
+let trex = {
+  x: 0, y: 0, targetX: 0,
+  growthStage: save.growthStage || 0,
+  happiness: save.happiness != null ? save.happiness : 50,
+  tailPhase: 0, jumpT: 0, sad: false, feedFlash: 0, growPowerT: 0
+};
+
+let items = [];
+let particles = [];
+let popups = [];
+let stormT = 0;
+let stormCooldown = 18;
+
+let timeLeft = 45;
+let goal = 16;
+let berryCount = 0;
+let spawnTimer = 0;
+let lastLevelScore = 0;
+
+let pointerX = null;
+let lastTime = 0;
+
+/* ---------- Input ---------- */
+function setPointerFromClient(clientX){
+  pointerX = clientX;
+  girl.targetX = Math.max(40, Math.min(W-40, clientX));
+}
+canvas.addEventListener('touchstart', e=>{ e.preventDefault(); const t=e.touches[0]; setPointerFromClient(t.clientX); ensureAudio(); }, {passive:false});
+canvas.addEventListener('touchmove', e=>{ e.preventDefault(); const t=e.touches[0]; setPointerFromClient(t.clientX); }, {passive:false});
+canvas.addEventListener('mousedown', e=>{ setPointerFromClient(e.clientX); ensureAudio(); });
+window.addEventListener('mousemove', e=>{ if(e.buttons===1) setPointerFromClient(e.clientX); });
+
+document.addEventListener('visibilitychange', ()=>{
+  if (document.hidden && state==='playing') pauseGame();
+});
+
+/* ---------- Background ---------- */
+function drawBackground(){
+  const g = bgCtx;
+  g.clearRect(0,0,W,H);
+  const skyGrad = g.createLinearGradient(0,0,0,H*0.75);
+  skyGrad.addColorStop(0,'#7ec8e3');
+  skyGrad.addColorStop(1,'#cdeaf5');
+  g.fillStyle = skyGrad;
+  g.fillRect(0,0,W,H*0.8);
+
+  // sun
+  g.fillStyle = '#fff3b0';
+  g.beginPath(); g.arc(W*0.85, H*0.14, Math.min(W,H)*0.06, 0, Math.PI*2); g.fill();
+
+  // clouds
+  g.fillStyle = 'rgba(255,255,255,0.9)';
+  drawCloud(g, W*0.18, H*0.12, 1);
+  drawCloud(g, W*0.55, H*0.20, 0.7);
+
+  // distant hills
+  g.fillStyle = '#a9d977';
+  g.beginPath();
+  g.moveTo(0, H*0.62);
+  g.quadraticCurveTo(W*0.25, H*0.52, W*0.5, H*0.62);
+  g.quadraticCurveTo(W*0.75, H*0.72, W, H*0.6);
+  g.lineTo(W, H*0.8); g.lineTo(0,H*0.8); g.fill();
+
+  // field
+  const groundYY = H - Math.max(90, H*0.16);
+  const fieldGrad = g.createLinearGradient(0, groundYY-20, 0, H);
+  fieldGrad.addColorStop(0, '#8bc34a');
+  fieldGrad.addColorStop(1, '#6a9c3a');
+  g.fillStyle = fieldGrad;
+  g.fillRect(0, groundYY-20, W, H-(groundYY-20));
+
+  // rows
+  g.strokeStyle = 'rgba(0,0,0,0.06)';
+  g.lineWidth = 3;
+  for(let i=0;i<6;i++){
+    g.beginPath();
+    g.moveTo(0, groundYY+10 + i*18);
+    g.lineTo(W, groundYY+10 + i*18);
+    g.stroke();
+  }
+
+  // bushes along back row for atmosphere
+  const bushCount = Math.max(4, Math.round(W/160));
+  for(let i=0;i<bushCount;i++){
+    const bx = (i+0.5) * (W/bushCount);
+    drawBush(g, bx, groundYY-6, 26);
+  }
+
+  // fence posts
+  g.fillStyle = '#c9a074';
+  for(let i=0;i<Math.ceil(W/70)+1;i++){
+    const px = i*70;
+    g.fillRect(px, groundYY-46, 6, 46);
+  }
+}
+function drawCloud(g,x,y,s){
+  g.save(); g.translate(x,y); g.scale(s,s);
+  g.beginPath();
+  g.arc(0,0,18,0,Math.PI*2);
+  g.arc(20,-8,14,0,Math.PI*2);
+  g.arc(-20,-4,14,0,Math.PI*2);
+  g.arc(10,8,16,0,Math.PI*2);
+  g.arc(-12,8,16,0,Math.PI*2);
+  g.fill(); g.restore();
+}
+function drawBush(g,x,y,r){
+  g.fillStyle = '#4f8f3a';
+  g.beginPath();
+  g.arc(x-r*0.5,y,r*0.6,0,Math.PI*2);
+  g.arc(x+r*0.5,y,r*0.6,0,Math.PI*2);
+  g.arc(x,y-r*0.4,r*0.7,0,Math.PI*2);
+  g.fill();
+  g.fillStyle = '#d1495b';
+  for(let i=0;i<3;i++){
+    g.beginPath();
+    g.arc(x - r*0.5 + i*(r*0.5), y - (i%2? r*0.2: -r*0.1), 3.5, 0, Math.PI*2);
+    g.fill();
+  }
+}
+
+/* ---------- Character drawing ---------- */
+function drawGirl(x, y, phase, catchFlash){
+  const s = 1.0;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s,s);
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath(); ctx.ellipse(0, 4, 22, 6, 0, 0, Math.PI*2); ctx.fill();
+
+  const legSwing = Math.sin(phase) * 10;
+  const armSwing = Math.sin(phase + Math.PI) * 12;
+  const armLift = catchFlash > 0 ? -30*Math.min(1,catchFlash*3) : 0;
+
+  // legs
+  ctx.strokeStyle = '#f6c9a0'; ctx.lineWidth = 7; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-6,-14); ctx.lineTo(-6+legSwing*0.3,2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(6,-14); ctx.lineTo(6-legSwing*0.3,2); ctx.stroke();
+  // shoes
+  ctx.fillStyle = '#e88fa3';
+  ctx.beginPath(); ctx.ellipse(-6+legSwing*0.3, 3, 6, 3.4, 0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6-legSwing*0.3, 3, 6, 3.4, 0,0,Math.PI*2); ctx.fill();
+
+  // dress (white A-line)
+  const dressGrad = ctx.createLinearGradient(0,-46,0,-10);
+  dressGrad.addColorStop(0,'#ffffff');
+  dressGrad.addColorStop(1,'#f2f2f2');
+  ctx.fillStyle = dressGrad;
+  ctx.beginPath();
+  ctx.moveTo(-9,-46);
+  ctx.lineTo(9,-46);
+  ctx.lineTo(20,-6);
+  ctx.quadraticCurveTo(0,2,-20,-6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#ffb6c8'; ctx.lineWidth = 2; ctx.stroke();
+
+  // sash bow
+  ctx.fillStyle = '#ff9fb3';
+  ctx.beginPath(); ctx.ellipse(-6,-22,5,3.4,0.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6,-22,5,3.4,-0.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0,-22,2.6,0,Math.PI*2); ctx.fill();
+
+  // arms
+  ctx.strokeStyle = '#f6c9a0'; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(-9,-40); ctx.quadraticCurveTo(-18,-30+armLift*0.4, -16+armSwing*0.2, -16+armLift); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(9,-40); ctx.quadraticCurveTo(18,-30+armLift*0.4, 16-armSwing*0.2, -16+armLift); ctx.stroke();
+
+  // neck + head
+  ctx.fillStyle = '#f6c9a0';
+  ctx.beginPath(); ctx.arc(0,-52,11,0,Math.PI*2); ctx.fill();
+
+  // hair back (black bob) - caps only the top of the head, well above eye line
+  ctx.fillStyle = '#2b2320';
+  ctx.beginPath();
+  ctx.arc(0,-55.5,12.5,Math.PI,Math.PI*2);
+  ctx.fill();
+  // side hair (down past ears, still clear of the face)
+  ctx.beginPath(); ctx.ellipse(-12,-52,3.5,7,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(12,-52,3.5,7,0,0,Math.PI*2); ctx.fill();
+  // twin buns
+  ctx.beginPath(); ctx.arc(-13,-61,5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(13,-61,5,0,Math.PI*2); ctx.fill();
+  // blunt center bangs (small dip, stays above the eyes)
+  ctx.beginPath();
+  ctx.moveTo(-7,-55.5);
+  ctx.quadraticCurveTo(0,-52.5,7,-55.5);
+  ctx.fill();
+
+  // face
+  ctx.fillStyle = '#2b2320';
+  ctx.beginPath(); ctx.arc(-4,-51,1.4,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(4,-51,1.4,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#2b2320'; ctx.lineWidth = 1.2; ctx.lineCap='round';
+  ctx.beginPath(); ctx.arc(0,-47,3,0.15*Math.PI,0.85*Math.PI); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,140,160,0.55)';
+  ctx.beginPath(); ctx.ellipse(-7,-48,2.2,1.4,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(7,-48,2.2,1.4,0,0,Math.PI*2); ctx.fill();
+
+  ctx.restore();
+}
+
+function drawTRex(x, y, scale, tailPhase, jumpT, sad, feedFlash){
+  ctx.save();
+  const bob = jumpT>0 ? -Math.sin(Math.min(1,jumpT)*Math.PI)*14 : 0;
+  ctx.translate(x, y+bob);
+  ctx.scale(scale, scale);
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath(); ctx.ellipse(0, 6-bob*0.05, 20, 5, 0,0,Math.PI*2); ctx.fill();
+
+  const tailAng = Math.sin(tailPhase)*0.35;
+
+  // tail
+  ctx.fillStyle = '#5fbf6b';
+  ctx.save();
+  ctx.translate(-16,-6);
+  ctx.rotate(tailAng);
+  ctx.beginPath();
+  ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(-16,-6,-24,2);
+  ctx.quadraticCurveTo(-14,6,0,6);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  // legs
+  ctx.fillStyle = '#4aa857';
+  ctx.beginPath(); ctx.ellipse(-8,10,6,5,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(8,10,6,5,0,0,Math.PI*2); ctx.fill();
+
+  // body
+  const bodyGrad = ctx.createRadialGradient(-4,-14,4,0,-6,26);
+  bodyGrad.addColorStop(0,'#8fe08a');
+  bodyGrad.addColorStop(1,'#5fbf6b');
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.ellipse(0,-8,18,16,0,0,Math.PI*2);
+  ctx.fill();
+
+  // belly
+  ctx.fillStyle = '#eaf9d8';
+  ctx.beginPath();
+  ctx.ellipse(2,-2,10,9,0,0,Math.PI*2);
+  ctx.fill();
+
+  // tiny arms
+  ctx.strokeStyle = '#4aa857'; ctx.lineWidth = 3; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(10,-10); ctx.lineTo(16,-4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-10,-10); ctx.lineTo(-16,-4); ctx.stroke();
+
+  // head
+  ctx.fillStyle = '#6cc86f';
+  ctx.beginPath();
+  ctx.ellipse(14,-20,12,10,-0.15,0,Math.PI*2);
+  ctx.fill();
+  // snout
+  ctx.beginPath();
+  ctx.ellipse(22,-17,6,5,-0.1,0,Math.PI*2);
+  ctx.fill();
+  // spikes
+  ctx.fillStyle = '#3f8f4a';
+  for(let i=0;i<3;i++){
+    ctx.beginPath();
+    ctx.moveTo(-2+i*7,-20-8);
+    ctx.lineTo(1+i*7,-26-8*0.4);
+    ctx.lineTo(4+i*7,-20-8);
+    ctx.fill();
+  }
+
+  // eye
+  ctx.fillStyle = 'white';
+  ctx.beginPath(); ctx.arc(18,-22,4.2,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#20351f';
+  if (sad){
+    ctx.beginPath(); ctx.arc(19,-21,2, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#20351f'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(14,-27); ctx.lineTo(22,-25); ctx.stroke();
+    // tear
+    ctx.fillStyle = 'rgba(120,190,255,0.8)';
+    ctx.beginPath(); ctx.ellipse(16,-16,1.6,2.6,0,0,Math.PI*2); ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.arc(19,-22,2.2,0,Math.PI*2); ctx.fill();
+  }
+  // little teeth
+  ctx.fillStyle = 'white';
+  ctx.beginPath(); ctx.moveTo(25,-14); ctx.lineTo(27,-11); ctx.lineTo(23,-12); ctx.fill();
+
+  if (feedFlash > 0){
+    ctx.globalAlpha = Math.min(1, feedFlash*2);
+    ctx.fillStyle = '#ff6f91';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('❤', 6, -40 - Math.min(1,feedFlash)*10);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}
+
+/* ---------- Items ---------- */
+const ITEM_TYPES = {
+  redberry:  { r:11, color:'#e63950', score:1, weight:50 },
+  blueberry: { r:11, color:'#3f6fd6', score:3, weight:18 },
+  goldberry: { r:12, color:'#f4c542', score:5, weight:7, timeBonus:3 },
+  meat:      { r:13, color:'#c97b46', score:0, weight:14, feed:true },
+  bug:       { r:11, color:'#7a5c3e', score:-2, weight:14, bad:true }
+};
+function pickType(cfg){
+  let bugW = ITEM_TYPES.bug.weight * (1 + (level-1)*0.12);
+  const weights = {
+    redberry: ITEM_TYPES.redberry.weight,
+    blueberry: ITEM_TYPES.blueberry.weight,
+    goldberry: ITEM_TYPES.goldberry.weight,
+    meat: ITEM_TYPES.meat.weight,
+    bug: bugW
+  };
+  const total = Object.values(weights).reduce((a,b)=>a+b,0);
+  let r = Math.random()*total;
+  for (const k in weights){
+    if (r < weights[k]) return k;
+    r -= weights[k];
+  }
+  return 'redberry';
+}
+function spawnItem(){
+  const type = pickType();
+  const def = ITEM_TYPES[type];
+  const speedMul = 1 + (level-1)*0.09 + (stormT>0 ? 0.4 : 0);
+  items.push({
+    type, x: 30 + Math.random()*(W-60), y: -20,
+    vy: (DIFF[difficulty].fallSpeed + (level-1)*12) * speedMul * (0.85+Math.random()*0.3),
+    sway: (Math.random()-0.5) * (type==='goldberry'||type==='bug' ? 90 : 30),
+    swayPhase: Math.random()*Math.PI*2,
+    r: def.r, rot: 0, rotV: (Math.random()-0.5)*2
+  });
+}
+
+/* ---------- Particles & popups ---------- */
+function spawnBurst(x,y,color,n){
+  for(let i=0;i<n;i++){
+    const ang = Math.random()*Math.PI*2;
+    const spd = 60+Math.random()*90;
+    particles.push({x,y,vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd - 40, life:0.6+Math.random()*0.3, color});
+  }
+}
+function spawnPopup(x,y,text,color){
+  popups.push({x,y,text,color,life:0.9,vy:-40});
+}
+
+/* ---------- Game flow ---------- */
+function configureLevel(){
+  const d = DIFF[difficulty];
+  goal = d.goal + (level-1)*6;
+  timeLeft = d.time + (level-1)*3;
+  berryCount = 0;
+  items = []; particles = []; popups = [];
+  spawnTimer = 0;
+  stormT = 0; stormCooldown = 14 + Math.random()*8;
+  girl.x = W/2; girl.targetX = W/2;
+  trex.x = W/2 - 60; trex.targetX = trex.x;
+  updateUI();
+}
+function startGame(){
+  level = 1;
+  configureLevel();
+  state = 'playing';
+  hide('startScreen'); hide('levelCompleteScreen'); hide('gameOverScreen'); hide('pauseScreen');
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+function pauseGame(){
+  if (state !== 'playing') return;
+  state = 'paused';
+  show('pauseScreen');
+}
+function resumeGame(){
+  state = 'playing';
+  hide('pauseScreen');
+  lastTime = performance.now();
+}
+function nextLevel(){
+  level++;
+  configureLevel();
+  state = 'playing';
+  hide('levelCompleteScreen');
+  lastTime = performance.now();
+}
+function completeLevel(){
+  state = 'levelcomplete';
+  const timeBonus = Math.round(timeLeft*2);
+  lastLevelScore += berryCount*10 + timeBonus;
+  document.getElementById('lcBerries').textContent = berryCount;
+  document.getElementById('lcTimeBonus').textContent = timeBonus;
+  document.getElementById('lcStage').textContent = GROWTH_NAMES[trex.growthStage];
+  document.getElementById('lcScore').textContent = lastLevelScore;
+  sfx.win();
+  persist();
+  show('levelCompleteScreen');
+}
+function gameOver(){
+  state = 'gameover';
+  document.getElementById('goBerries').textContent = berryCount;
+  document.getElementById('goGoal').textContent = goal;
+  document.getElementById('goLevel').textContent = level;
+  const msgs = [
+    "The harvest basket wasn't quite full...",
+    "So close! The chickens got the rest.",
+    "Rexy is still hungry for more berries!",
+  ];
+  document.getElementById('goMessage').textContent = msgs[Math.floor(Math.random()*msgs.length)];
+  sfx.lose();
+  persist();
+  show('gameOverScreen');
+}
+function backToMenu(){
+  state = 'start';
+  hide('gameOverScreen'); hide('levelCompleteScreen'); hide('pauseScreen');
+  show('startScreen');
+}
+function show(id){ document.getElementById(id).classList.remove('hidden'); }
+function hide(id){ document.getElementById(id).classList.add('hidden'); }
+
+/* ---------- UI update ---------- */
+function updateUI(){
+  document.getElementById('timeText').textContent = Math.max(0,Math.ceil(timeLeft));
+  document.getElementById('berryText').textContent = `${berryCount}/${goal}`;
+  document.getElementById('berryFill').style.width = Math.min(100,(berryCount/goal)*100)+'%';
+  document.getElementById('levelText').textContent = level;
+  document.getElementById('happyPct').textContent = Math.round(trex.happiness)+'%';
+  document.getElementById('happyFill').style.width = Math.max(0,trex.happiness)+'%';
+  document.getElementById('trexName').textContent = '🦖 ' + GROWTH_NAMES[trex.growthStage];
+}
+
+/* ---------- Update loop ---------- */
+function update(dt){
+  // girl movement
+  const speed = 10 * girl.speedMul;
+  const dx = girl.targetX - girl.x;
+  girl.vx = dx * Math.min(1, speed*dt);
+  girl.x += girl.vx;
+  girl.phase += Math.min(1,Math.abs(girl.vx)*0.5) * dt * 14 + dt*0.5;
+  if (girl.catchFlash>0) girl.catchFlash -= dt;
+
+  // trex follow (lags behind)
+  const followOffset = 55 * GROWTH_SCALE[trex.growthStage] + 15;
+  const dir = girl.vx >= 0 ? -1 : 1;
+  trex.targetX = girl.x + followOffset*dir;
+  trex.targetX = Math.max(20, Math.min(W-20, trex.targetX));
+  trex.x += (trex.targetX - trex.x) * Math.min(1, 4*dt);
+  trex.tailPhase += dt * (trex.sad ? 1.5 : 4);
+  if (trex.jumpT>0) trex.jumpT -= dt*1.6; else trex.jumpT=0;
+  if (trex.feedFlash>0) trex.feedFlash -= dt;
+  if (trex.growPowerT>0) trex.growPowerT -= dt;
+
+  // happiness passive decay
+  trex.happiness -= dt * 1.6;
+  if (trex.happiness < 0) trex.happiness = 0;
+  if (trex.happiness <= 15) { trex.sad = true; girl.speedMul = 0.72; }
+  else if (trex.happiness > 25) { trex.sad = false; girl.speedMul = 1; }
+
+  // storm timer
+  if (stormT > 0){
+    stormT -= dt;
+    if (stormT<=0) hide('stormBanner');
+  } else {
+    stormCooldown -= dt;
+    if (stormCooldown <= 0){
+      stormT = 4.5;
+      stormCooldown = 20 + Math.random()*8;
+      show('stormBanner');
+    }
+  }
+
+  // spawn
+  spawnTimer -= dt*1000;
+  const spawnMs = Math.max(280, DIFF[difficulty].spawnMs - (level-1)*35) / (stormT>0?1.8:1);
+  if (spawnTimer <= 0){
+    spawnItem();
+    spawnTimer = spawnMs * (0.8+Math.random()*0.4);
+  }
+
+  const girlY = groundY - 4;
+  const trexY = groundY;
+  const catchWidth = 30;
+  const catchTop = girlY - 78, catchBottom = girlY + 6;
+
+  // items
+  for (let i=items.length-1;i>=0;i--){
+    const it = items[i];
+    it.y += it.vy*dt;
+    it.swayPhase += dt*3;
+    it.x += Math.sin(it.swayPhase) * it.sway * dt;
+    it.x = Math.max(15, Math.min(W-15, it.x));
+    it.rot += it.rotV*dt;
+
+    // magnet power: pull berries toward trex and auto-collect
+    if (trex.growPowerT > 0 && !ITEM_TYPES[it.type].bad){
+      const dxm = trex.x - it.x, dym = trexY-40 - it.y;
+      const dist = Math.hypot(dxm,dym);
+      if (dist < 140){
+        it.x += dxm*0.12; it.y += dym*0.12;
+        if (dist < 20){
+          collectItem(it, trex.x, trexY-30);
+          items.splice(i,1);
+          continue;
+        }
+      }
+    }
+
+    const withinX = Math.abs(it.x - girl.x) < catchWidth;
+    const withinY = it.y > catchTop && it.y < catchBottom;
+    if (withinX && withinY){
+      collectItem(it, it.x, it.y);
+      items.splice(i,1);
+      continue;
+    }
+    if (it.y > H+30) items.splice(i,1);
+  }
+
+  // particles
+  for (let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.vy += 220*dt;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.life -= dt;
+    if (p.life<=0) particles.splice(i,1);
+  }
+  // popups
+  for (let i=popups.length-1;i>=0;i--){
+    const p = popups[i];
+    p.y += p.vy*dt; p.life -= dt;
+    if (p.life<=0) popups.splice(i,1);
+  }
+
+  // timer & win/lose
+  timeLeft -= dt;
+  if (berryCount >= goal){
+    completeLevel();
+    return;
+  }
+  if (timeLeft <= 0){
+    timeLeft = 0;
+    gameOver();
+    return;
+  }
+  updateUI();
+}
+
+function collectItem(it, atX, atY){
+  const def = ITEM_TYPES[it.type];
+  girl.catchFlash = 0.25;
+  if (def.feed){
+    trex.happiness = Math.min(100, trex.happiness + 25);
+    trex.jumpT = 1; trex.feedFlash = 1;
+    spawnBurst(atX, atY, '#ffb37a', 10);
+    spawnPopup(atX, atY, '🍖 Yum!', '#c97b46');
+    sfx.feed();
+    if (trex.happiness >= 100 && trex.growthStage < GROWTH_NAMES.length-1){
+      trex.growthStage++;
+      trex.happiness = 55;
+      trex.growPowerT = 5;
+      spawnBurst(trex.x, groundY-30, '#ffe066', 26);
+      spawnPopup(trex.x, groundY-60, `⭐ ${GROWTH_NAMES[trex.growthStage]}!`, '#e0a500');
+      sfx.grow();
+    }
+    persist();
+  } else if (def.bad){
+    berryCount = Math.max(0, berryCount + def.score);
+    trex.happiness = Math.max(0, trex.happiness - 4);
+    spawnBurst(atX, atY, '#6b5744', 8);
+    spawnPopup(atX, atY, `${def.score}`, '#a33');
+    sfx.bad();
+  } else {
+    berryCount += def.score;
+    if (def.timeBonus) { timeLeft += def.timeBonus; spawnPopup(atX, atY-16, `+${def.timeBonus}s`, '#2e8b57'); }
+    spawnBurst(atX, atY, def.color, def.score>=5?16:8);
+    spawnPopup(atX, atY, `+${def.score}`, def.color);
+    if (def.score>=5) sfx.rare(); else sfx.pick();
+  }
+}
+
+/* ---------- Draw ---------- */
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.drawImage(bgCanvas, 0,0, W, H);
+
+  if (stormT > 0){
+    ctx.fillStyle = 'rgba(60,20,80,0.18)';
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // items
+  items.forEach(it=>{
+    const def = ITEM_TYPES[it.type];
+    ctx.save();
+    ctx.translate(it.x, it.y);
+    ctx.rotate(it.rot);
+    drawItemShape(it.type, def);
+    ctx.restore();
+  });
+
+  // trex (draw behind/around girl)
+  drawTRex(trex.x, groundY, GROWTH_SCALE[trex.growthStage], trex.tailPhase, trex.jumpT, trex.sad, trex.feedFlash);
+
+  // girl
+  drawGirl(girl.x, groundY-4, girl.phase, girl.catchFlash);
+
+  // particles
+  particles.forEach(p=>{
+    ctx.globalAlpha = Math.max(0,p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,3.5,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+
+  // popups
+  popups.forEach(p=>{
+    ctx.globalAlpha = Math.max(0,Math.min(1,p.life));
+    ctx.font = 'bold 16px -apple-system, sans-serif';
+    ctx.fillStyle = p.color;
+    ctx.textAlign = 'center';
+    ctx.fillText(p.text, p.x, p.y);
+    ctx.globalAlpha = 1;
+  });
+}
+
+function drawItemShape(type, def){
+  if (type==='bug'){
+    ctx.fillStyle = def.color;
+    ctx.beginPath(); ctx.ellipse(0,0,10,7,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = def.color; ctx.lineWidth=1.6;
+    for(let i=-1;i<=1;i++){
+      ctx.beginPath(); ctx.moveTo(i*4,5); ctx.lineTo(i*4+3,10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(i*4,-5); ctx.lineTo(i*4+3,-10); ctx.stroke();
+    }
+    ctx.fillStyle='white';
+    ctx.beginPath(); ctx.arc(-3,-2,1.6,0,Math.PI*2); ctx.arc(3,-2,1.6,0,Math.PI*2); ctx.fill();
+    return;
+  }
+  if (type==='meat'){
+    ctx.fillStyle = '#e8a06b';
+    ctx.beginPath(); ctx.ellipse(0,2,10,7,0.3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#f4d9b4';
+    ctx.beginPath(); ctx.ellipse(6,-6,4,4,0,0,Math.PI*2); ctx.fill();
+    return;
+  }
+  // berries
+  const grad = ctx.createRadialGradient(-3,-3,1,0,0,def.r);
+  grad.addColorStop(0, lighten(def.color));
+  grad.addColorStop(1, def.color);
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(0,0,def.r,0,Math.PI*2); ctx.fill();
+  if (type==='goldberry'){
+    ctx.strokeStyle = '#fff3b0'; ctx.lineWidth=1.5;
+    for(let i=0;i<4;i++){
+      const a = i*Math.PI/2 + performance.now()/300;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a)*(def.r+2), Math.sin(a)*(def.r+2));
+      ctx.lineTo(Math.cos(a)*(def.r+6), Math.sin(a)*(def.r+6));
+      ctx.stroke();
+    }
+  }
+  ctx.fillStyle = '#4f8f3a';
+  ctx.beginPath(); ctx.ellipse(0,-def.r+2,3.5,2,0.4,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(4,-def.r+3,3,1.6,-0.3,0,Math.PI*2); ctx.fill();
+}
+function lighten(hex){
+  const c = hex.replace('#','');
+  const num = parseInt(c,16);
+  let r=(num>>16)+70, g=((num>>8)&255)+70, b=(num&255)+70;
+  r=Math.min(255,r); g=Math.min(255,g); b=Math.min(255,b);
+  return `rgb(${r},${g},${b})`;
+}
+
+/* ---------- Loop ---------- */
+function loop(now){
+  const dt = Math.min(0.033, (now-lastTime)/1000);
+  lastTime = now;
+  if (state==='playing') update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- Buttons ---------- */
+document.getElementById('diffRow').addEventListener('click', e=>{
+  const btn = e.target.closest('.diffBtn');
+  if (!btn) return;
+  document.querySelectorAll('.diffBtn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  difficulty = btn.dataset.diff;
+});
+document.getElementById('startBtn').addEventListener('click', ()=>{ ensureAudio(); lastLevelScore = 0; startGame(); });
+document.getElementById('nextLevelBtn').addEventListener('click', nextLevel);
+document.getElementById('retryBtn').addEventListener('click', ()=>{ lastLevelScore = 0; startGame(); });
+document.getElementById('menuBtn').addEventListener('click', backToMenu);
+document.getElementById('resumeBtn').addEventListener('click', resumeGame);
+document.getElementById('quitBtn').addEventListener('click', ()=>{ state='start'; hide('pauseScreen'); show('startScreen'); });
+document.getElementById('pauseBtn').addEventListener('click', ()=>{ if(state==='playing') pauseGame(); });
+document.getElementById('muteBtn').addEventListener('click', (e)=>{
+  muted = !muted;
+  e.target.textContent = muted ? '🔇' : '🔊';
+});
+
+resize();
+updateUI();
+draw();
+})();
+</script>
+</body>
+</html>

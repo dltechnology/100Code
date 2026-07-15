@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#1a0f2e" />
+  <title>Castle Feast</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene"></canvas>
+
+    <!-- Loading -->
+    <div id="loading-screen" class="overlay">
+      <div class="crest">&#128993;</div>
+      <h1>CASTLE FEAST</h1>
+      <p class="tag">A Royal Siege</p>
+      <div class="spinner"></div>
+      <p id="loading-text">Loading kitchens and catapults&hellip;</p>
+    </div>
+
+    <!-- Title / character select -->
+    <div id="title-screen" class="overlay hidden">
+      <h1>CASTLE FEAST</h1>
+      <p class="tag">Fatten your royal. Raid theirs. Carry her home.</p>
+      <div id="class-select"></div>
+      <button id="start-btn" class="big-btn">Enter the Siege</button>
+      <div id="how-to-toggle" class="link-btn">How to play</div>
+      <div id="how-to-panel" class="hidden">
+        <ul>
+          <li><b>Move</b> with the left stick. <b>Attack</b> and <b>Interact</b> with the right buttons.</li>
+          <li>Bring cake to your own Royal's cage and hold Interact to feed her &mdash; a fatter Royal is slower for enemies to carry off, buying your team time.</li>
+          <li>Break the enemy gate, break their Royal's cage lock, then walk into her to pick her up.</li>
+          <li>Carry her all the way back to <b>your</b> castle's return circle to win. You can't attack while carrying &mdash; get an escort!</li>
+          <li>Getting knocked out while carrying drops her on the spot.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div id="hud-top">
+        <div class="team-score gold">
+          <span class="label">GOLD</span>
+          <div class="royal-bar"><div id="gold-royal-fill" class="fill"></div></div>
+        </div>
+        <div id="timer">05:00</div>
+        <div class="team-score crimson">
+          <span class="label">CRIMSON</span>
+          <div class="royal-bar"><div id="crimson-royal-fill" class="fill"></div></div>
+        </div>
+      </div>
+      <div id="objective-banner"></div>
+      <div id="hp-bar-wrap">
+        <div id="hp-bar"><div id="hp-fill" class="fill"></div></div>
+      </div>
+      <div id="carry-indicator" class="hidden">CARRYING ROYAL &mdash; GET HER HOME!</div>
+      <div id="touch-controls">
+        <div id="joystick-zone">
+          <div id="joystick-base"><div id="joystick-knob"></div></div>
+        </div>
+        <div id="action-buttons">
+          <button id="btn-jump" class="action-btn">JUMP</button>
+          <button id="btn-interact" class="action-btn">USE</button>
+          <button id="btn-attack" class="action-btn primary">ATTACK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- End screen -->
+    <div id="end-screen" class="overlay hidden">
+      <h1 id="end-title">VICTORY</h1>
+      <p id="end-sub"></p>
+      <button id="restart-btn" class="big-btn">Play Again</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

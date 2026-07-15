@@ -1,0 +1,17 @@
+{
+  "name": "castle-feast",
+  "version": "1.0.0",
+  "description": "Original 3D castle-siege browser game playable on iPhone/Android via mobile browser. Pick a hero, defend and feed your team's royal, raid the enemy castle, carry their royal home to win.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}
